@@ -313,15 +313,36 @@ async def viewstock(interaction: discord.Interaction):
 @bot.tree.command(name="addstock", description="Add accounts to stock. (Admin)")
 @app_commands.describe(
     category="Free or Premium",
-    accounts="Accounts to add, one per line"
+    file="Text file containing accounts, one per line"
 )
 @app_commands.choices(category=[
     app_commands.Choice(name="Free",    value="Free"),
     app_commands.Choice(name="Premium", value="Premium"),
 ])
 @is_admin()
-async def addstock(interaction: discord.Interaction, category: app_commands.Choice[str], accounts: str):
+async def addstock(interaction: discord.Interaction, category: app_commands.Choice[str], file: discord.Attachment):
     guild_id = str(interaction.guild_id)
+
+    content_type = (file.content_type or "").lower()
+    filename = (file.filename or "").lower()
+    is_text_file = content_type.startswith("text/") or filename.endswith((".txt", ".csv"))
+    if not is_text_file:
+        await interaction.response.send_message(
+            embed=discord.Embed(description="❌ Please upload a valid text file (.txt, .csv, etc.).", color=RED),
+            ephemeral=True
+        )
+        return
+
+    try:
+        raw_bytes = await file.read()
+        accounts = raw_bytes.decode("utf-8")
+    except Exception:
+        await interaction.response.send_message(
+            embed=discord.Embed(description="❌ Please upload a valid text file (.txt, .csv, etc.).", color=RED),
+            ephemeral=True
+        )
+        return
+
     lines = [l.strip() for l in accounts.strip().splitlines() if l.strip()]
     if not lines:
         await interaction.response.send_message(
